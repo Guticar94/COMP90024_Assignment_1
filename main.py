@@ -1,9 +1,11 @@
-exec(open('classes.py').read())
+from utils.classes import reading_json, process_data
+from utils.variables import json_tweeter, json_geo, json_enrich
+
 def main():
     #Read Json Files
     read = reading_json()
     df_tw = read.read_tweets(json_tweeter)
-    df_geo = read.read_geo(json_geo, json_enrich)
+    # df_geo = read.read_geo(json_geo, json_enrich)
 
     #Process the data to get the
     proc = process_data(df_tw)
@@ -21,9 +23,10 @@ def main():
     df3 = proc.point_3()
 
     #Docs to csv
-    df1.to_csv('df1.csv')
-    df2.to_csv('df2.csv')
-    df3.to_csv('df3.csv')
+    output_folder_path = './output/'
+    df1.to_csv(output_folder_path+'df1.csv')
+    df2.to_csv(output_folder_path+'df2.csv')
+    df3.to_csv(output_folder_path+'df3.csv')
 
 if __name__ == '__main__':
     main()

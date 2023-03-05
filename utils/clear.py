@@ -2,7 +2,7 @@
 #### Temporal files drop
 #Remove csv files
 import os
-file_path = '/Users/guticar/Documents/COMP90024_Assignment_1/'
+file_path = './output/'
 try:
     os.remove(file_path+'df1.csv')
 except:
