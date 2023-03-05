@@ -4,13 +4,13 @@ import json
 from .variables import ccities, replacements, gcca_codes
 
 class reading_json:
-    def read_tweets(self, json_tweeter):
+    def read_tweets(self, data):
         # Reading the twitter json
-        with open("./input/twitter-data-small.json", "r") as file:
-            data = json.load(file)
+        # with open("./input/twitter-data-small.json", "r") as file:
+        #     data = json.load(file)
 
-        self.df = pd.DataFrame({'auth_id':[data[val]['data']['author_id'] for val in range(0,len(data))],\
-                'place_name': [data[val]['includes']['places'][0]['full_name'] for val in range(0,len(data))]})
+        self.df = pd.DataFrame({'auth_id':[data['data']['author_id']],\
+                'place_name': [data['includes']['places'][0]['full_name']]})
     
         return self.df
     
