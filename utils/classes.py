@@ -1,14 +1,12 @@
 #Import working libraries
 import pandas as pd
 import json
-
-
-exec(open('variables.py').read())
+from .variables import ccities, replacements, gcca_codes
 
 class reading_json:
     def read_tweets(self, json_tweeter):
         # Reading the twitter json
-        with open("twitter-data-small.json", "r") as file:
+        with open("./input/twitter-data-small.json", "r") as file:
             data = json.load(file)
 
         self.df = pd.DataFrame({'auth_id':[data[val]['data']['author_id'] for val in range(0,len(data))],\
@@ -19,11 +17,11 @@ class reading_json:
     def read_geo(self, json_geo, json_enrich):
         #Reading geographical data
         self.df_1 = pd.read_json(json_geo, orient='index')
-        self.df_1  = self.df_1 .reset_index(names='states')
-        self.df_1  = self.df_1 .set_index('sal').sort_index()
+        self.df_1  = self.df_1.reset_index(names='states')
+        self.df_1  = self.df_1.set_index('sal').sort_index()
 
         #Enriching geographical data
-        self.df_2 = pd.read_csv('georef.csv', sep=';').drop(['Geo Shape'], axis=1)
+        self.df_2 = pd.read_csv('./input/georef.csv', sep=';').drop(['Geo Shape'], axis=1)
         self.df_2 = self.df_2.set_index('Official Code Suburb').sort_index()
 
         #Joinin geo data
