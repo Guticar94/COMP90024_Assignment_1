@@ -16,5 +16,5 @@ module load python/3.8.6
 module load pip/21.2.4-python-3.8.6
 pip3 install -r requirements.txt
 
-mpiexec python3 main.py -p output/
+mpiexec python3 main.py -p output/ -c 500 
 
