@@ -4,6 +4,7 @@ import pandas as pd
 import ijson
 import argparse
 import time
+import logging
 
 #Import helpers and variables
 from utils.variables import (
@@ -24,6 +25,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 total_number_of_available_nodes = comm.Get_size()
 
+
 # Head node function
 def mpi_rank_0(chunk_size, df_geo):
     # Create one bucket of tweets per available node
@@ -34,6 +36,12 @@ def mpi_rank_0(chunk_size, df_geo):
     # Define dict to append values
     tweets = {'auth_id':[],'place_name':[]}
 
+    
+    # Getting logs
+    logging.basicConfig(level= logging.DEBUG, filename='./output/main.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    
     # Dataframe agreggator
     result_aggregator = ResultAggregator()
 
@@ -107,7 +115,6 @@ def mpi_rank_0(chunk_size, df_geo):
         update_signal_for_workers(False, comm)
 
     return result_aggregator
-
 
 def mpi_rank_workers(df_geo):
     data = None
