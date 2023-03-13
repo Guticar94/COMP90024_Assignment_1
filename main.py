@@ -81,39 +81,27 @@ def mpi_rank_0(chunk_size, df_geo):
                     collection_of_buckets = [] # Reset collection of buckets
 
     # Processed residual incomplete buckets
-    # If collection_of_buckets is not completed, then create None Objects
-    if len(collection_of_buckets) != 0:
-        
-        # Individual Chunck of chunk_size size to df format
-        bucket_of_individual_tweets = pd.DataFrame(tweets)
-        # Append residual chink to bucket
-        collection_of_buckets.append(bucket_of_individual_tweets)
+    # Individual Chunck of chunk_size size to df format
+    bucket_of_individual_tweets = pd.DataFrame(tweets)
+    # Append residual chink to bucket
+    collection_of_buckets.append(bucket_of_individual_tweets)
 
-        # Temporary variable for printing
-        val = sum([[len(val) for val in collection_of_buckets]][0])
+    # Temporary variable for printing
+    val = sum([[len(val) for val in collection_of_buckets]][0])
 
-        # Fill the bucket for scattering to all nodes 
-        # (We could explore the option of point to point connection at this point)
-        collection_of_buckets = collection_of_buckets + [None] *\
-                (total_number_of_available_nodes - len(collection_of_buckets))
-        
-        # Temporal printing to see results
-        print(f'Scattering {val} from bucket number {pr_cnt+1} at node {rank}')
+    # Fill the bucket for scattering to all nodes 
+    # (We could explore the option of point to point connection at this point)
+    collection_of_buckets = collection_of_buckets + [None] *\
+            (total_number_of_available_nodes - len(collection_of_buckets))
+    
+    # Temporal printing to see results
+    print(f'Scattering last {val} tweets from bucket number {pr_cnt+1} at node {rank}')
 
-        # Scatter the bucket and get processed data
-        send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
+    # Scatter the bucket and get processed data
+    send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
 
-        # Here we tell the workers to STOP
-        update_signal_for_workers(False, comm)
-
-    elif tweet_counter != 0:
-        data_processed = process_tweets(bucket_of_individual_tweets, df_geo)
-        result_aggregator.update_aggregation(data_processed)
-        # Here we process the residual tweets (on rank 0 process) and tell the other workers to STOP
-        collection_of_buckets = [None] * total_number_of_available_nodes
-        comm.scatter(collection_of_buckets, root=0)
-        update_signal_for_workers(False, comm)
-
+    # Here we tell the workers to STOP
+    update_signal_for_workers(False, comm)
     return result_aggregator
 
 def mpi_rank_workers(df_geo):
