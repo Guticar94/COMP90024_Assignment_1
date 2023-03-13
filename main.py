@@ -1,93 +1,116 @@
-import argparse
-from utils.variables import (
-    json_twitter,
-)
-from utils.classes import ResultAggregator, reading_json
-from utils.helpers import (
-    create_empty_data_frame_to_accumulate_chunks_of_tweets,
-    send_buckets_to_workers,
-    update_signal_for_workers,
-    process_residual_tweets,
-    process_tweets,
-)
+# Import working libraries
 from mpi4py import MPI
 import pandas as pd
 import ijson
+import argparse
+import time
 import logging
 
+#Import helpers and variables
+from utils.variables import (
+    json_twitter, json_geo, gcca_codes, ccities
+)
+# from utils.classes import ResultAggregator, reading_json
+from utils.helpers import (
+    send_buckets_and_gather_results,
+    update_signal_for_workers,
+    process_tweets,
+    ResultAggregator,
+    reading_json,
+    process_data
+)
+
+# MPI Parameters
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 total_number_of_available_nodes = comm.Get_size()
 
-def mpi_rank_0(chunk_size, read):
+
+# Head node function
+def mpi_rank_0(chunk_size, df_geo):
+    # Create one bucket of tweets per available node
+    collection_of_buckets = []
+    
+    # Counter of chunck sizes
+    ch_size = chunk_size-1
+    # Define dict to append values
+    tweets = {'auth_id':[],'place_name':[]}
+
+    
+    # Getting logs
     logging.basicConfig(level= logging.DEBUG, filename='./output/main.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    # Create one bucket of tweets per available node
-    collection_of_buckets = []
-    tweet_counter = 0
-    total_tweets = 0
-    bucket_of_individual_tweets = (
-        create_empty_data_frame_to_accumulate_chunks_of_tweets()
-    )
+    
+    # Dataframe agreggator
     result_aggregator = ResultAggregator()
 
+    #Counter for printing --- Can be deleted afterwards
+    pr_cnt = 0
+
     # Reading the twitter json with list Comprehension
-    with open(json_twitter, "rb") as f:
-        for tweet in ijson.items(f, "item"):
-            df = pd.DataFrame(
-                [
-                    {
-                        "auth_id": [tweet["data"]["author_id"]][0],
-                        "place_name": [tweet["includes"]["places"][0]["full_name"]][0],
-                    }
-                ]
-            )
-            bucket_of_individual_tweets = pd.concat([bucket_of_individual_tweets, df])
-            tweet_counter = tweet_counter + 1
-            # If bucket is completed, then append to collection of buckets
-            if tweet_counter == chunk_size:
+    with open(json_twitter, "r") as f:
+        # Iterate the json file one by one
+        for tweet_counter, tweet in enumerate(ijson.items(f, "item")):
+            # Fill temporal dict with twitter values
+            tweets['auth_id'].append([[tweet['data']['author_id']][0]][0])
+            tweets['place_name'].append([tweet['includes']['places'][0]['full_name']][0])
+            
+            # If bucket is completed, then append to collection of buckets to be sent
+            if tweet_counter == ch_size:
+                # Individual Chunck of chunk_size size to df format
+                bucket_of_individual_tweets = pd.DataFrame(tweets)
+                # Append chunk to bucket
                 collection_of_buckets.append(bucket_of_individual_tweets)
+                # Empty dict
+                tweets = {'auth_id':[],'place_name':[]}
+                # Update Chunck counter to fill next chunk
+                ch_size += chunk_size
+
                 # If collection of buckets reach its maximum capacity, then start scattering
                 if len(collection_of_buckets) == total_number_of_available_nodes:
-                    send_buckets_to_workers(
-                        collection_of_buckets, comm, rank, read, result_aggregator
-                    )
+                    
+                    # Temporal printing to see results
+                    pr_cnt += 1 #Update print counter
+                    print(f'Scattering {int((tweet_counter+1)/pr_cnt)} tweets in bucket number {pr_cnt} at node {rank}')
+                    print(f"{tweet_counter} sent")
+
+                    # Scatter the buckets, get processed data, and update workers signal
+                    send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
                     update_signal_for_workers(True, comm)
-                    collection_of_buckets = []
+                    collection_of_buckets = [] # Reset collection of buckets
 
-                # Reset counter and clear the bucket from tweets
-                total_tweets = total_tweets + tweet_counter
-                logger.info(f"IN PROGRESS: Total Tweets analysed: {total_tweets}")
-                tweet_counter = 0
-                bucket_of_individual_tweets = (
-                    create_empty_data_frame_to_accumulate_chunks_of_tweets()
-                )
-    
     # Processed residual incomplete buckets
-    process_residual_tweets(
-        total_number_of_available_nodes,
-        collection_of_buckets,
-        tweet_counter,
-        bucket_of_individual_tweets,
-        comm,
-        read,
-        rank,
-        result_aggregator,
-    )
-    total_tweets = total_tweets + tweet_counter
-    logger.info(f"FINISHED: A total of {total_tweets} tweets were analyzed")
+    # Individual Chunck of chunk_size size to df format
+    bucket_of_individual_tweets = pd.DataFrame(tweets)
+    # Append residual chink to bucket
+    collection_of_buckets.append(bucket_of_individual_tweets)
 
+    # Temporary variable for printing
+    val = sum([[len(val) for val in collection_of_buckets]][0])
+
+    # Fill the bucket for scattering to all nodes 
+    # (We could explore the option of point to point connection at this point)
+    collection_of_buckets = collection_of_buckets + [None] *\
+            (total_number_of_available_nodes - len(collection_of_buckets))
+    
+    # Temporal printing to see results
+    print(f'Scattering last {val} tweets from bucket number {pr_cnt+1} at node {rank}')
+
+    # Scatter the bucket and get processed data
+    send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
+
+    # Here we tell the workers to STOP
+    update_signal_for_workers(False, comm)
     return result_aggregator
 
-
-def mpi_rank_workers(read):
+def mpi_rank_workers(df_geo):
     data = None
     are_there_tweets_being_processed = True
     while are_there_tweets_being_processed:
         data = comm.scatter(data, root=0)
         if isinstance(data, pd.DataFrame):
-            data_procesed = process_tweets(read, data, rank)
+            data_procesed = process_tweets(data, df_geo)
         else:
             data_procesed = [None,None]
         comm.gather(data_procesed, root=0)
@@ -96,24 +119,52 @@ def mpi_rank_workers(read):
         )
 
 
-def main(args):
+def main():
     if args.get('chunk'):
         chunk_size = args['chunk']
     else:
         chunk_size = 100
+
     read = reading_json()
+    df_geo = read.read_geo(json_geo)  # Sal file -- Dict
 
     if rank == 0:
-        result_aggregator = mpi_rank_0(chunk_size, read)
-        
+        st = time.time()
+        # Run node 0 function
+        result_aggregator = mpi_rank_0(chunk_size, df_geo)
+
+        # Temporal printing to see results
+        ttweets = result_aggregator.df1['Number of Tweets Made'].sum()
+        print(f'Total of processed tweets: {ttweets}')
+
+        # Here we answer the assignment questions
+        # (We may do this through point to point communication) 
+        # Call class
+        proc = process_data(result_aggregator.df1)
+
+        #Answer question 1
+        df1 = proc.point_1(gcca_codes)
+
+        #Answer question 2
+        df2 = proc.point_2()
+
+        #Answer question 3
+        df3 = proc.point_3(ccities)
+
+
         # Docs to csv
         output_folder_path = args['path']
-        result_aggregator.df1.to_csv(output_folder_path + "df1.csv")
-        # df2.to_csv(output_folder_path + "df2.csv")
-        # df3.to_csv(output_folder_path + "df3.csv")
+        df1.to_csv(output_folder_path + "df1.csv")
+        df2.to_csv(output_folder_path + "df2.csv")
+        df3.to_csv(output_folder_path + "df3.csv")
+
+        et = time.time()
+        # get the execution time
+        elapsed_time = et - st
+        print('Execution time:', elapsed_time, 'seconds')
 
     else:
-        mpi_rank_workers(read)
+        mpi_rank_workers(df_geo)
 
 
 if __name__ == "__main__":
@@ -121,4 +172,4 @@ if __name__ == "__main__":
     parser.add_argument('-p','--path', help='Description for foo argument', required=True)
     parser.add_argument('-c','--chunk', help='Description for bar argument', required=False, type=int)
     args = vars(parser.parse_args())
-    main(args)
+    main()
