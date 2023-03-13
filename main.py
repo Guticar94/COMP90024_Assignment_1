@@ -13,14 +13,16 @@ from utils.helpers import (
 from mpi4py import MPI
 import pandas as pd
 import ijson
-import sys
+import logging
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 total_number_of_available_nodes = comm.Get_size()
 
-
 def mpi_rank_0(chunk_size, read):
+    logging.basicConfig(level= logging.DEBUG, filename='./output/main.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
     # Create one bucket of tweets per available node
     collection_of_buckets = []
     tweet_counter = 0
@@ -56,11 +58,11 @@ def mpi_rank_0(chunk_size, read):
 
                 # Reset counter and clear the bucket from tweets
                 total_tweets = total_tweets + tweet_counter
+                logger.info(f"IN PROGRESS: Total Tweets analysed: {total_tweets}")
                 tweet_counter = 0
                 bucket_of_individual_tweets = (
                     create_empty_data_frame_to_accumulate_chunks_of_tweets()
                 )
-                sys.stdout.write(f"ANALYZING: Total Tweets analysed: {total_tweets}\n")
     
     # Processed residual incomplete buckets
     process_residual_tweets(
@@ -74,7 +76,7 @@ def mpi_rank_0(chunk_size, read):
         result_aggregator,
     )
     total_tweets = total_tweets + tweet_counter
-    sys.stdout.write(f"FINISHED: A total of {total_tweets} tweets were analyzed\n")
+    logger.info(f"FINISHED: A total of {total_tweets} tweets were analyzed")
 
     return result_aggregator
 
@@ -117,6 +119,6 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='The following program will answer the three questions of assignment 1 for subject COMP90024')
     parser.add_argument('-p','--path', help='Description for foo argument', required=True)
-    parser.add_argument('-c','--chunk', help='Description for bar argument', required=False)
+    parser.add_argument('-c','--chunk', help='Description for bar argument', required=False, type=int)
     args = vars(parser.parse_args())
     main(args)
