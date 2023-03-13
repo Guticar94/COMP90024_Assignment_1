@@ -1,5 +1,5 @@
 # Json and csv files
-json_twitter = './input/twitter-data-small.json'
+json_twitter = './input/tinyTwitter.json'
 json_geo = './input/sal.json'
 
 #Creating refence lists to standirize data columns
