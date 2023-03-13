@@ -4,19 +4,10 @@ import re
 
 #Import variables
 from utils.variables import (
-    json_geo,
-    gcca_codes,
-    ccities,
     states_dict,
     capitals_dict,
     replacements,
 )
-
-# Temporal printing parameters
-from mpi4py import MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-total_number_of_available_nodes = comm.Get_size()
 #____________________________________________________________________________________________________
 # Read SAL (Statistical Area Level) dataframe
 class reading_json:
@@ -66,11 +57,7 @@ class quality_data:
         return self.wk_ds
 #____________________________________________________________________________________________________
 # Apply standarization and replace processing changes to incomming dataframes
-def process_tweets(df_tw, df_geo):
-
-    # Temporal printing to see results
-    print(f'Processing {df_tw.shape[0]} tweets on worker number {rank}')
-    
+def process_tweets(df_tw, df_geo):    
     # Estandarize dataset
     qua = quality_data(df_tw, df_geo)
     est = qua.standarize(states_dict)
@@ -161,7 +148,6 @@ class ResultAggregator:
         )
 
     def update_aggregation(self, partial_results):
-        # print(partial_results)
         for partial_result in partial_results:
             if isinstance(partial_result, pd.DataFrame):
                 self.df1 = (
