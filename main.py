@@ -13,6 +13,7 @@ from utils.helpers import (
 from mpi4py import MPI
 import pandas as pd
 import ijson
+import sys
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -23,6 +24,7 @@ def mpi_rank_0(chunk_size, read):
     # Create one bucket of tweets per available node
     collection_of_buckets = []
     tweet_counter = 0
+    total_tweets = 0
     bucket_of_individual_tweets = (
         create_empty_data_frame_to_accumulate_chunks_of_tweets()
     )
@@ -53,11 +55,13 @@ def mpi_rank_0(chunk_size, read):
                     collection_of_buckets = []
 
                 # Reset counter and clear the bucket from tweets
+                total_tweets = total_tweets + tweet_counter
                 tweet_counter = 0
                 bucket_of_individual_tweets = (
                     create_empty_data_frame_to_accumulate_chunks_of_tweets()
                 )
-
+                sys.stdout.write(f"ANALYZING: Total Tweets analysed: {total_tweets}\n")
+    
     # Processed residual incomplete buckets
     process_residual_tweets(
         total_number_of_available_nodes,
@@ -69,6 +73,8 @@ def mpi_rank_0(chunk_size, read):
         rank,
         result_aggregator,
     )
+    total_tweets = total_tweets + tweet_counter
+    sys.stdout.write(f"FINISHED: A total of {total_tweets} tweets were analyzed\n")
 
     return result_aggregator
 
