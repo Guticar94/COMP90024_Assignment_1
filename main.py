@@ -3,6 +3,7 @@ from mpi4py import MPI
 import pandas as pd
 import ijson
 import argparse
+import time
 
 #Import helpers and variables
 from utils.variables import (
@@ -64,6 +65,7 @@ def mpi_rank_0(chunk_size, df_geo):
                     # Temporal printing to see results
                     pr_cnt += 1 #Update print counter
                     print(f'Scattering {int((tweet_counter+1)/pr_cnt)} tweets in bucket number {pr_cnt} at node {rank}')
+                    print(f"{tweet_counter} sent")
 
                     # Scatter the buckets, get processed data, and update workers signal
                     send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
@@ -72,7 +74,7 @@ def mpi_rank_0(chunk_size, df_geo):
 
     # Processed residual incomplete buckets
     # If collection_of_buckets is not completed, then create None Objects
-    if len(tweets['auth_id']) > 2:
+    if len(collection_of_buckets) != 0:
         
         # Individual Chunck of chunk_size size to df format
         bucket_of_individual_tweets = pd.DataFrame(tweets)
@@ -94,6 +96,14 @@ def mpi_rank_0(chunk_size, df_geo):
         send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
 
         # Here we tell the workers to STOP
+        update_signal_for_workers(False, comm)
+
+    elif tweet_counter != 0:
+        data_processed = process_tweets(bucket_of_individual_tweets, df_geo)
+        result_aggregator.update_aggregation(data_processed)
+        # Here we process the residual tweets (on rank 0 process) and tell the other workers to STOP
+        collection_of_buckets = [None] * total_number_of_available_nodes
+        comm.scatter(collection_of_buckets, root=0)
         update_signal_for_workers(False, comm)
 
     return result_aggregator
@@ -124,6 +134,7 @@ def main():
     df_geo = read.read_geo(json_geo)  # Sal file -- Dict
 
     if rank == 0:
+        st = time.time()
         # Run node 0 function
         result_aggregator = mpi_rank_0(chunk_size, df_geo)
 
@@ -152,6 +163,11 @@ def main():
         df2.to_csv(output_folder_path + "df2.csv")
         df3.to_csv(output_folder_path + "df3.csv")
 
+        et = time.time()
+        # get the execution time
+        elapsed_time = et - st
+        print('Execution time:', elapsed_time, 'seconds')
+
     else:
         mpi_rank_workers(df_geo)
 
@@ -159,6 +175,6 @@ def main():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='The following program will answer the three questions of assignment 1 for subject COMP90024')
     parser.add_argument('-p','--path', help='Description for foo argument', required=True)
-    parser.add_argument('-c','--chunk', help='Description for bar argument', required=False)
+    parser.add_argument('-c','--chunk', help='Description for bar argument', required=False, type=int)
     args = vars(parser.parse_args())
     main()
