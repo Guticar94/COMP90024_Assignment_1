@@ -23,11 +23,12 @@ from utils.helpers import (
 # MPI Parameters
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
+node_name = comm.Get_name()
 total_number_of_available_nodes = comm.Get_size()
 
 
 # Head node function
-def mpi_rank_0(chunk_size, df_geo):
+def mpi_rank_0(chunk_size, df_geo,logger):
     # Create one bucket of tweets per available node
     collection_of_buckets = []
     
@@ -35,19 +36,13 @@ def mpi_rank_0(chunk_size, df_geo):
     ch_size = chunk_size-1
     # Define dict to append values
     tweets = {'auth_id':[],'place_name':[]}
-
-    
-    # Getting logs
-    logging.basicConfig(level= logging.DEBUG, filename='./output/main.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
     
     # Dataframe agreggator
     result_aggregator = ResultAggregator()
 
     #Counter for printing --- Can be deleted afterwards
     pr_cnt = 0
-
+    tweet_cnt = 0
     # Reading the twitter json with list Comprehension
     with open(json_twitter, "r") as f:
         # Iterate the json file one by one
@@ -66,17 +61,17 @@ def mpi_rank_0(chunk_size, df_geo):
                 tweets = {'auth_id':[],'place_name':[]}
                 # Update Chunck counter to fill next chunk
                 ch_size += chunk_size
-
+                tweet_cnt = tweet_cnt + chunk_size
+                logger.info(f"IN PROGRESS: Total Tweets analysed: {tweet_cnt}")
                 # If collection of buckets reach its maximum capacity, then start scattering
                 if len(collection_of_buckets) == total_number_of_available_nodes:
                     
                     # Temporal printing to see results
                     pr_cnt += 1 #Update print counter
-                    print(f'Scattering {int((tweet_counter+1)/pr_cnt)} tweets in bucket number {pr_cnt} at node {rank}')
-                    print(f"{tweet_counter} sent")
+                    logger.info(f'Scattering {int((tweet_counter+1)/pr_cnt)} tweets in collection number {pr_cnt} at node {rank} with name {node_name}')
 
                     # Scatter the buckets, get processed data, and update workers signal
-                    send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
+                    send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)                    
                     update_signal_for_workers(True, comm)
                     collection_of_buckets = [] # Reset collection of buckets
 
@@ -95,11 +90,11 @@ def mpi_rank_0(chunk_size, df_geo):
             (total_number_of_available_nodes - len(collection_of_buckets))
     
     # Temporal printing to see results
-    print(f'Scattering last {val} tweets from bucket number {pr_cnt+1} at node {rank}')
+    logger.info(f'Scattering last {val} tweets from collection number {pr_cnt+1} at node {rank}')
 
     # Scatter the bucket and get processed data
     send_buckets_and_gather_results(collection_of_buckets, comm, df_geo, result_aggregator)
-
+    logger.info(f"FINISHED: A total of {tweet_counter+1} tweets were analyzed")
     # Here we tell the workers to STOP
     update_signal_for_workers(False, comm)
     return result_aggregator
@@ -129,13 +124,16 @@ def main():
     df_geo = read.read_geo(json_geo)  # Sal file -- Dict
 
     if rank == 0:
+        # Getting logs
+        logging.basicConfig(level= logging.DEBUG, filename='./output/main.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
         st = time.time()
         # Run node 0 function
-        result_aggregator = mpi_rank_0(chunk_size, df_geo)
+        result_aggregator = mpi_rank_0(chunk_size, df_geo,logger)
 
         # Temporal printing to see results
-        ttweets = result_aggregator.df1['Number of Tweets Made'].sum()
-        print(f'Total of processed tweets: {ttweets}')
+        result_aggregator.df1['Number of Tweets Made'].sum()
 
         # Here we answer the assignment questions
         # (We may do this through point to point communication) 
@@ -161,7 +159,7 @@ def main():
         et = time.time()
         # get the execution time
         elapsed_time = et - st
-        print('Execution time:', elapsed_time, 'seconds')
+        logger.info(f"Execution time: {elapsed_time} seconds")
 
     else:
         mpi_rank_workers(df_geo)
