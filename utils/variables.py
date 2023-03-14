@@ -23,7 +23,7 @@ states_dict = {
     '.outh..ustralia':'(sa)',
     '.estern..ustralia':'(wa)',
     '.asmania':'(tas)',
-    '.orthern..erritory.':'(nt)',
+    '.orthern..erritory':'(nt)',
     '(.ustralian..apital..erritory)':'(acc)',
 }
 
@@ -37,6 +37,7 @@ replacements = {
     '.*\(wa\).*':'5rwau',
     '.*\(tas\).*':'6rtas',
     '.*\(nt\).*':'7rnte',
+    '.*8acte.*':'8acte',
     }
 
 
