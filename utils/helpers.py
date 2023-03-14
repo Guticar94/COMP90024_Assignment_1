@@ -7,6 +7,7 @@ from utils.variables import (
     states_dict,
     capitals_dict,
     replacements,
+    gcca_codes
 )
 #____________________________________________________________________________________________________
 # Read SAL (Statistical Area Level) dataframe
@@ -147,15 +148,17 @@ class ResultAggregator:
             columns=["Greater Capital City", "Author Id", "Number of Tweets Made"]
         )
 
-    def update_aggregation(self, partial_results):
+    def update_aggregation(self, partial_results, codes= gcca_codes):
         for partial_result in partial_results:
             if isinstance(partial_result, pd.DataFrame):
                 self.df1 = (
                     pd.concat([self.df1, partial_result])
                     .groupby(["Greater Capital City", "Author Id"])["Number of Tweets Made"]
                     .sum()
-                    .reset_index()
-                )
+                    .reset_index())
+                #Filter only australian territories to improve performance
+                # self.df1 = self.df1[self.df1['Greater Capital City'].isin(codes.keys())]
+
 #____________________________________________________________________________________________________
 def send_buckets_and_gather_results(
     collection_of_buckets, comm, df_geo, result_aggregator):
