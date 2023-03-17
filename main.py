@@ -23,7 +23,7 @@ from utils.helpers import (
 # MPI Parameters
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-node_name = comm.Get_name()
+node_name = MPI.Get_processor_name()
 total_number_of_available_nodes = comm.Get_size()
 
 
@@ -125,9 +125,10 @@ def main():
 
     if rank == 0:
         # Getting logs
-        logging.basicConfig(level= logging.DEBUG, filename='./output/main.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(level= logging.DEBUG, filename='./output/main-2node-8core.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
+        logger.info(f"Node List: {args.get('nodelist')}")
         st = time.time()
         # Run node 0 function
         result_aggregator = mpi_rank_0(chunk_size, df_geo,logger)
@@ -152,9 +153,9 @@ def main():
 
         # Docs to csv
         output_folder_path = args['path']
-        df1.to_csv(output_folder_path + "df1.csv")
-        df2.to_csv(output_folder_path + "df2.csv")
-        df3.to_csv(output_folder_path + "df3.csv")
+        df1.to_csv(output_folder_path + "df1-2node-8core.csv")
+        df2.to_csv(output_folder_path + "df2-2node-8core.csv")
+        df3.to_csv(output_folder_path + "df3-2node-8core.csv")
 
         et = time.time()
         # get the execution time
@@ -169,5 +170,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='The following program will answer the three questions of assignment 1 for subject COMP90024')
     parser.add_argument('-p','--path', help='Description for foo argument', required=True)
     parser.add_argument('-c','--chunk', help='Description for bar argument', required=False, type=int)
+    parser.add_argument('-n','--nodelist', help='Description for foo argument', required=False)
     args = vars(parser.parse_args())
     main()
