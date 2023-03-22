@@ -160,13 +160,10 @@ class ResultAggregator:
                 # self.df1 = self.df1[self.df1['Greater Capital City'].isin(codes.keys())]
 
 #____________________________________________________________________________________________________
-def send_buckets_and_gather_results(
-    collection_of_buckets, comm, df_geo, result_aggregator):
+def process_tweets_and_gather_results(bucket_of_individual_tweets,comm, df_geo, result_aggregator):
     # This function scatter the processes to the worker nodes and gather its results
-    data = comm.scatter(collection_of_buckets, root=0) # Sending bucket-chunks to each node in the network (Here we can test only send to workers)
-    partial_results = comm.gather(process_tweets(data, df_geo), root=0) # Gathering results of processing nodes
+    # data = comm.scatter(collection_of_buckets, root=0) # Sending bucket-chunks to each node in the network (Here we can test only send to workers)
+    partial_results = comm.gather(process_tweets(bucket_of_individual_tweets, df_geo), root=0) # Gathering results of processing nodes
     result_aggregator.update_aggregation(partial_results) # Aggregating partials results
 
-#____________________________________________________________________________________________________
-def update_signal_for_workers(are_there_tweets_being_processed, comm):
-    comm.bcast(are_there_tweets_being_processed, root=0)
+    return result_aggregator.df1["Number of Tweets Made"].sum()
