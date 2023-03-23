@@ -11,7 +11,8 @@ from utils.variables import json_twitter, json_geo, gcca_codes, ccities
 
 # from utils.classes import ResultAggregator, reading_json
 from utils.helpers import (
-    process_tweets_and_gather_results,
+    aggregate_results,
+    gather_results,
     process_tweets,
     ResultAggregator,
     reading_json,
@@ -65,11 +66,12 @@ def mpi_rank_0(chunk_size, df_geo, logger):
                     tweet_cnt = tweet_cnt + chunk_size
 
                     # Scatter the buckets, get processed data, and update workers signal
-                    tweets_aggregated = process_tweets_and_gather_results(
-                        bucket_of_individual_tweets, comm, df_geo, result_aggregator
+                    tweets_aggregated = result_aggregator.update_aggregation(
+                        [process_tweets(bucket_of_individual_tweets, df_geo)]
+                    )  # Aggregating partials results
+                    logger.info(
+                        f"IN PROGRESS: Total Tweets analysed: {tweet_counter + 1}"
                     )
-                    logger.info(f"IN PROGRESS: Total Tweets analysed: {tweets_aggregated}")
-                    # update_signal_for_workers(True, comm)
                     incrementor = incrementor + total_number_of_available_nodes
                     if total_number_of_available_nodes == 1:
                         # Empty dict
@@ -84,17 +86,29 @@ def mpi_rank_0(chunk_size, df_geo, logger):
 
     # Temporal printing to see results
     # Scatter the bucket and get processed data
-    result_aggregator.update_aggregation(
+    tweets_aggregated = result_aggregator.update_aggregation(
         [process_tweets(bucket_of_individual_tweets, df_geo)]
     )  # Aggregating partials results
-    logger.info(f"FINISHED: A total of {tweet_counter+1} tweets were analyzed")
-    return result_aggregator
+
+    logger.info(
+        f"IN PROGRESS: Total Tweets analysed: {tweets_aggregated} in rank {rank}"
+    )
+
+    # get processed data, and aggregate results
+    all_aggregators = gather_results(comm, result_aggregator)
+    super_aggregator = aggregate_results(all_aggregators)
+    logger.info(
+        f'FINISHED: A total of {super_aggregator.df1["Number of Tweets Made"].sum()} tweets were analyzed'
+    )
+    return super_aggregator
 
 
 def mpi_rank_workers(df_geo):
     chunk_size = 0
     # Define dict to append values
     tweets = {"auth_id": [], "place_name": []}
+    # Dataframe agreggator
+    result_aggregator = ResultAggregator()
     incrementor = 0
     chunk_size = comm.bcast(chunk_size, root=0)
     # while are_there_tweets_being_processed:
@@ -115,7 +129,9 @@ def mpi_rank_workers(df_geo):
                     # Individual Chunck of chunk_size size to df format
                     bucket_of_individual_tweets = pd.DataFrame(tweets)
                     data_procesed = process_tweets(bucket_of_individual_tweets, df_geo)
-                    comm.gather(data_procesed, root=0)
+                    tweets_aggregated = result_aggregator.update_aggregation(
+                        [data_procesed]
+                    )  # Aggregating partials results
                     incrementor = incrementor + total_number_of_available_nodes
             else:
                 # Empty dict
@@ -123,7 +139,10 @@ def mpi_rank_workers(df_geo):
 
         bucket_of_individual_tweets = pd.DataFrame(tweets)
         data_procesed = process_tweets(bucket_of_individual_tweets, df_geo)
-        comm.gather(data_procesed, root=0)
+        result_aggregator.update_aggregation(
+            [data_procesed]
+        )  # Aggregating partials results
+        comm.gather(result_aggregator, root=0)
 
 
 def main():
@@ -132,8 +151,8 @@ def main():
     else:
         chunk_size = 100
 
-    if args.get('tag'):
-        experiment_tag_id = args['tag']
+    if args.get("tag"):
+        experiment_tag_id = args["tag"]
     else:
         experiment_tag_id = "default"
 
@@ -197,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--chunk", help="Description for bar argument", required=False, type=int
     )
-    parser.add_argument('-t','--tag', help='Experiment Identifier', required=False)
+    parser.add_argument("-t", "--tag", help="Experiment Identifier", required=False)
     parser.add_argument(
         "-n", "--nodelist", help="Description for foo argument", required=False
     )
