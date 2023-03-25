@@ -120,12 +120,17 @@ def main():
     else:
         chunk_size = 100
 
+    if args.get('tag'):
+        experiment_tag_id = args['tag']
+    else:
+        experiment_tag_id = "default"
+
     read = reading_json()
     df_geo = read.read_geo(json_geo)  # Sal file -- Dict
 
     if rank == 0:
         # Getting logs
-        logging.basicConfig(level= logging.DEBUG, filename='./output/main-2node-8core.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(level= logging.DEBUG, filename=f'./output/main-{experiment_tag_id}.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
         logger.info(f"Node List: {args.get('nodelist')}")
@@ -153,9 +158,9 @@ def main():
 
         # Docs to csv
         output_folder_path = args['path']
-        df1.to_csv(output_folder_path + "df1-2node-8core.csv")
-        df2.to_csv(output_folder_path + "df2-2node-8core.csv")
-        df3.to_csv(output_folder_path + "df3-2node-8core.csv")
+        df1.to_csv(output_folder_path + "df1-{experiment_tag_id}.csv")
+        df2.to_csv(output_folder_path + "df2-{experiment_tag_id}.csv")
+        df3.to_csv(output_folder_path + "df3-{experiment_tag_id}.csv")
 
         et = time.time()
         # get the execution time
@@ -168,8 +173,9 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='The following program will answer the three questions of assignment 1 for subject COMP90024')
-    parser.add_argument('-p','--path', help='Description for foo argument', required=True)
-    parser.add_argument('-c','--chunk', help='Description for bar argument', required=False, type=int)
-    parser.add_argument('-n','--nodelist', help='Description for foo argument', required=False)
+    parser.add_argument('-p','--path', help='Path to output folder', required=True)
+    parser.add_argument('-c','--chunk', help='Number of tweets per chunk', required=False, type=int)
+    parser.add_argument('-t','--tag', help='Experiment Identifier', required=False)
+    parser.add_argument('-n','--nodelist', help='Node lists where the script will run', required=False)
     args = vars(parser.parse_args())
     main()
