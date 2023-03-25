@@ -8,7 +8,7 @@
 #SBATCH -o /home/hromanocuro/COMP90024_ASSIGNMENT_1/output/slurm-2node-8core.%N.%j.out          # STDOUT
 #SBATCH -e /home/hromanocuro/COMP90024_ASSIGNMENT_1/output/slurm-2node-8core.%N.%j.err          # STDERR
 #SBATCH --mail-type=ALL,ARRAY_TASKS
-#SBATCH --mail-user=hromanocuro@student.unimelb.edu.au
+#SBATCH --mail-user=hromanocuro@student.unimelb.edu.au,agutierrezca@student.unimelb.edu.au
 
 cd /home/$USER/COMP90024_ASSIGNMENT_1/
 module load gcc/10.2.0 

@@ -2,26 +2,26 @@
 import pandas as pd
 import re
 
-#Import variables
-from utils.variables import (
-    states_dict,
-    capitals_dict,
-    replacements,
-    gcca_codes
-)
-#____________________________________________________________________________________________________
+# Import variables
+from utils.variables import states_dict, capitals_dict, replacements, gcca_codes
+
+
+# ____________________________________________________________________________________________________
 # Read SAL (Statistical Area Level) dataframe
 class reading_json:
     def read_geo(self, path):
         # Reading geographical data
         return pd.read_json(path, orient="index")["gcc"]
-#____________________________________________________________________________________________________
+
+
+# ____________________________________________________________________________________________________
 # Apply standarization rules and merge data by place name
 class quality_data:
     def __init__(self, df, geo):
         # Read data
         self.wk_ds = df
         self.geo = geo
+
     # Standarize geo notation and change of structure to string comparison
     def standarize(self, states_dict):
         # Set the names to lower case and drop special characters except Parenthesis to geo data
@@ -56,20 +56,24 @@ class quality_data:
             {"place_name": replacements}, regex=True
         )
         return self.wk_ds
-#____________________________________________________________________________________________________
+
+
+# ____________________________________________________________________________________________________
 # Apply standarization and replace processing changes to incomming dataframes
-def process_tweets(df_tw, df_geo):    
+def process_tweets(df_tw, df_geo):
     # Estandarize dataset
     qua = quality_data(df_tw, df_geo)
     est = qua.standarize(states_dict)
     est = qua.replacement(capitals_dict, replacements)
 
     # Agreggated Data Frame and return estandarized agreggation
-    df = est.reset_index().groupby(['place_name', 'auth_id']).count().reset_index()
+    df = est.reset_index().groupby(["place_name", "auth_id"]).count().reset_index()
     df.columns = ["Greater Capital City", "Author Id", "Number of Tweets Made"]
     assert est.shape[0] == df.iloc[:, 2].sum()
     return df
-#____________________________________________________________________________________________________
+
+
+# ____________________________________________________________________________________________________
 # Responses to assignment questions
 class process_data:
     def __init__(self, df):
@@ -79,18 +83,28 @@ class process_data:
     def point_1(self, gcca_codes):
         # In the end non Australian territories may be grouped in other categorie__________________________________
 
-        self.pnt_1 = self.wk_ds.groupby("Greater Capital City")['Number of Tweets Made'].sum().\
-                reset_index().sort_values('Number of Tweets Made', ascending = False)
-        self.pnt_1.iloc[:,0] = (
-            self.pnt_1.iloc[:,0] + " (" +
-            self.pnt_1.replace({'Greater Capital City': gcca_codes}).iloc[:, 0] +
-              ")")
+        self.pnt_1 = (
+            self.wk_ds.groupby("Greater Capital City")["Number of Tweets Made"]
+            .sum()
+            .reset_index()
+            .sort_values("Number of Tweets Made", ascending=False)
+        )
+        self.pnt_1.iloc[:, 0] = (
+            self.pnt_1.iloc[:, 0]
+            + " ("
+            + self.pnt_1.replace({"Greater Capital City": gcca_codes}).iloc[:, 0]
+            + ")"
+        )
         return self.pnt_1
 
     def point_2(self):
         # Top 10 tweeters with their number of tweets
-        self.pnt_2 = self.wk_ds.groupby("Author Id")['Number of Tweets Made'].sum().reset_index().\
-                    sort_values('Number of Tweets Made', ascending = False)
+        self.pnt_2 = (
+            self.wk_ds.groupby("Author Id")["Number of Tweets Made"]
+            .sum()
+            .reset_index()
+            .sort_values("Number of Tweets Made", ascending=False)
+        )
         self.pnt_2.iloc[:, 0] = self.pnt_2.iloc[:, 0].apply(lambda x: "#" + str(x))
         return self.pnt_2
 
@@ -98,12 +112,13 @@ class process_data:
         #### Only Tweets from capital cities
         # Group de data for the task
         pnt_3 = (
-            self.wk_ds.reset_index()[self.wk_ds["Greater Capital City"].
-                                     isin(ccities)][["Author Id", "Greater Capital City", "Number of Tweets Made"]]
-                                     .groupby(["Author Id", "Greater Capital City"])
-                                     ['Number of Tweets Made'].sum()
-                                     .unstack()
-                                    #  .droplevel(0, axis=1)
+            self.wk_ds.reset_index()[self.wk_ds["Greater Capital City"].isin(ccities)][
+                ["Author Id", "Greater Capital City", "Number of Tweets Made"]
+            ]
+            .groupby(["Author Id", "Greater Capital City"])["Number of Tweets Made"]
+            .sum()
+            .unstack()
+            #  .droplevel(0, axis=1)
         )
 
         # Create function to aggregate all in text
@@ -140,7 +155,10 @@ class process_data:
         pnt_3_["Number of Unique City Locations and #Tweets"] = agreg
 
         return pnt_3_
-#____________________________________________________________________________________________________
+
+
+# ____________________________________________________________________________________________________
+
 
 class ResultAggregator:
     def __init__(self):
@@ -148,25 +166,44 @@ class ResultAggregator:
             columns=["Greater Capital City", "Author Id", "Number of Tweets Made"]
         )
 
-    def update_aggregation(self, partial_results, codes= gcca_codes):
+    def update_aggregation(self, partial_results, codes=gcca_codes):
         for partial_result in partial_results:
             if isinstance(partial_result, pd.DataFrame):
                 self.df1 = (
                     pd.concat([self.df1, partial_result])
-                    .groupby(["Greater Capital City", "Author Id"])["Number of Tweets Made"]
+                    .groupby(["Greater Capital City", "Author Id"])[
+                        "Number of Tweets Made"
+                    ]
                     .sum()
-                    .reset_index())
-                #Filter only australian territories to improve performance
-                # self.df1 = self.df1[self.df1['Greater Capital City'].isin(codes.keys())]
+                    .reset_index()
+                )
+        return self.df1["Number of Tweets Made"].sum()
+        # Filter only australian territories to improve performance
+        # self.df1 = self.df1[self.df1['Greater Capital City'].isin(codes.keys())]
 
-#____________________________________________________________________________________________________
-def send_buckets_and_gather_results(
-    collection_of_buckets, comm, df_geo, result_aggregator):
+
+# ____________________________________________________________________________________________________
+def gather_results(comm, result_aggregator):
     # This function scatter the processes to the worker nodes and gather its results
-    data = comm.scatter(collection_of_buckets, root=0) # Sending bucket-chunks to each node in the network (Here we can test only send to workers)
-    partial_results = comm.gather(process_tweets(data, df_geo), root=0) # Gathering results of processing nodes
-    result_aggregator.update_aggregation(partial_results) # Aggregating partials results
+    all_aggregators = comm.gather(
+        result_aggregator, root=0
+    )  # Gathering results of processing nodes
 
-#____________________________________________________________________________________________________
-def update_signal_for_workers(are_there_tweets_being_processed, comm):
-    comm.bcast(are_there_tweets_being_processed, root=0)
+    return all_aggregators
+
+
+def aggregate_results(all_aggregators):
+    # Dataframe agreggator
+    super_aggregator = ResultAggregator()
+    # This function scatter the processes to the worker nodes and gather its results
+
+    for aggregator in all_aggregators:
+        if isinstance(aggregator.df1, pd.DataFrame):
+            super_aggregator.df1 = (
+                pd.concat([super_aggregator.df1, aggregator.df1])
+                .groupby(["Greater Capital City", "Author Id"])["Number of Tweets Made"]
+                .sum()
+                .reset_index()
+            )
+
+    return super_aggregator
