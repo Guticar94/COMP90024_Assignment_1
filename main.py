@@ -207,18 +207,10 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="The following program will answer the three questions of assignment 1 for subject COMP90024"
-    )
-    parser.add_argument(
-        "-p", "--path", help="Description for foo argument", required=True
-    )
-    parser.add_argument(
-        "-c", "--chunk", help="Description for bar argument", required=False, type=int
-    )
-    parser.add_argument("-t", "--tag", help="Experiment Identifier", required=False)
-    parser.add_argument(
-        "-n", "--nodelist", help="Description for foo argument", required=False
-    )
+    parser = argparse.ArgumentParser(description='The following program will answer the three questions of assignment 1 for subject COMP90024')
+    parser.add_argument('-p','--path', help='Path to output folder', required=True)
+    parser.add_argument('-c','--chunk', help='Number of tweets per chunk', required=False, type=int)
+    parser.add_argument('-t','--tag', help='Experiment Identifier', required=False)
+    parser.add_argument('-n','--nodelist', help='Node lists where the script will run', required=False)
     args = vars(parser.parse_args())
     main()
