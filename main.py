@@ -9,7 +9,6 @@ import logging
 # Import helpers and variables
 from utils.variables import json_twitter, json_geo, gcca_codes, ccities
 
-# from utils.classes import ResultAggregator, reading_json
 from utils.helpers import (
     aggregate_results,
     gather_results,
@@ -29,9 +28,8 @@ total_number_of_available_nodes = comm.Get_size()
 # Head node function
 def mpi_rank_0(chunk_size, df_geo, logger):
     # Create one bucket of tweets per available node
-    # collection_of_buckets = []
     comm.bcast(chunk_size, root=0)
-    # Counter of chunck sizes
+    # Counter of chunk sizes
     ch_size = chunk_size - 1
     # Define dict to append values
     tweets = {"auth_id": [], "place_name": []}
@@ -39,14 +37,12 @@ def mpi_rank_0(chunk_size, df_geo, logger):
     # Dataframe agreggator
     result_aggregator = ResultAggregator()
 
-    # Counter for printing --- Can be deleted afterwards
-    tweet_cnt = 0
     incrementor = 0
     # Reading the twitter json with list Comprehension
     with open(json_twitter, "r") as f:
         # Iterate the json file one by one
         for tweet_counter, tweet in enumerate(ijson.items(f, "item")):
-            # If bucket is completed, then append to collection of buckets to be sent
+            # If bucket is completed, then append to collection of tweets
             if (
                 tweet_counter >= chunk_size * (rank + incrementor)
                 and tweet_counter < chunk_size * (rank + incrementor) + chunk_size
@@ -63,9 +59,8 @@ def mpi_rank_0(chunk_size, df_geo, logger):
 
                     # Update Chunck counter to fill next chunk
                     ch_size += chunk_size
-                    tweet_cnt = tweet_cnt + chunk_size
 
-                    # Scatter the buckets, get processed data, and update workers signal
+                    # Processed data, and update local aggregator
                     tweets_aggregated = result_aggregator.update_aggregation(
                         [process_tweets(bucket_of_individual_tweets, df_geo)]
                     )  # Aggregating partials results
@@ -85,7 +80,7 @@ def mpi_rank_0(chunk_size, df_geo, logger):
     bucket_of_individual_tweets = pd.DataFrame(tweets)
 
     # Temporal printing to see results
-    # Scatter the bucket and get processed data
+    # Processed data, and update local aggregator
     tweets_aggregated = result_aggregator.update_aggregation(
         [process_tweets(bucket_of_individual_tweets, df_geo)]
     )  # Aggregating partials results
@@ -111,7 +106,6 @@ def mpi_rank_workers(df_geo):
     result_aggregator = ResultAggregator()
     incrementor = 0
     chunk_size = comm.bcast(chunk_size, root=0)
-    # while are_there_tweets_being_processed:
     with open(json_twitter, "r") as f:
         # Iterate the json file one by one
         for tweet_counter, tweet in enumerate(ijson.items(f, "item")):
@@ -207,10 +201,16 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='The following program will answer the three questions of assignment 1 for subject COMP90024')
-    parser.add_argument('-p','--path', help='Path to output folder', required=True)
-    parser.add_argument('-c','--chunk', help='Number of tweets per chunk', required=False, type=int)
-    parser.add_argument('-t','--tag', help='Experiment Identifier', required=False)
-    parser.add_argument('-n','--nodelist', help='Node lists where the script will run', required=False)
+    parser = argparse.ArgumentParser(
+        description="The following program will answer the three questions of assignment 1 for subject COMP90024"
+    )
+    parser.add_argument("-p", "--path", help="Path to output folder", required=True)
+    parser.add_argument(
+        "-c", "--chunk", help="Number of tweets per chunk", required=False, type=int
+    )
+    parser.add_argument("-t", "--tag", help="Experiment Identifier", required=False)
+    parser.add_argument(
+        "-n", "--nodelist", help="Node lists where the script will run", required=False
+    )
     args = vars(parser.parse_args())
     main()
