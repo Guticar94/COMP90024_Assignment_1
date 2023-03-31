@@ -198,6 +198,8 @@ def main():
 
     else:
         mpi_rank_workers(df_geo)
+    
+    MPI.Finalize()
 
 
 if __name__ == "__main__":
