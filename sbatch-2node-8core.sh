@@ -19,5 +19,5 @@ virtualenv ./virtualenv/python3.8.6
 source ./virtualenv/python3.8.6/bin/activate
 pip install -r requirements.txt
 
-mpiexec python3 main.py -p ./output/ -c 100000 -t "2-node-8-core"  -n "$SLURM_JOB_NODELIST"
+mpiexec python3 main.py -i ./input/bigTwitter.json -p ./output/ -c 100000 -t "2-node-8-core" -n "$SLURM_JOB_NODELIST"
 deactivate
