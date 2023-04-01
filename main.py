@@ -7,7 +7,15 @@ import time
 import logging
 
 # Import helpers and variables
-from utils.variables import json_twitter, json_geo, gcca_codes, ccities,states_dict,capitals_dict, replacements
+from utils.variables import (
+    json_twitter,
+    json_geo,
+    gcca_codes,
+    ccities,
+    states_dict,
+    capitals_dict,
+    replacements,
+)
 
 from utils.helpers import (
     aggregate_results,
@@ -27,7 +35,7 @@ total_number_of_available_nodes = comm.Get_size()
 
 
 # Head node function
-def mpi_rank_0(chunk_size, df_geo, logger):
+def mpi_rank_0(chunk_size, df_geo, logger, twitter_input_file):
     # Create one bucket of tweets per available node
     comm.bcast(chunk_size, root=0)
     # Counter of chunk sizes
@@ -40,7 +48,7 @@ def mpi_rank_0(chunk_size, df_geo, logger):
 
     incrementor = 0
     # Reading the twitter json with list Comprehension
-    with open(json_twitter, "r") as f:
+    with open(twitter_input_file, "r") as f:
         # Iterate the json file one by one
         for tweet_counter, tweet in enumerate(ijson.items(f, "item")):
             # If bucket is completed, then append to collection of tweets
@@ -99,7 +107,7 @@ def mpi_rank_0(chunk_size, df_geo, logger):
     return super_aggregator
 
 
-def mpi_rank_workers(df_geo):
+def mpi_rank_workers(df_geo, twitter_input_file):
     chunk_size = 0
     # Define dict to append values
     tweets = {"auth_id": [], "place_name": []}
@@ -107,7 +115,7 @@ def mpi_rank_workers(df_geo):
     result_aggregator = ResultAggregator()
     incrementor = 0
     chunk_size = comm.bcast(chunk_size, root=0)
-    with open(json_twitter, "r") as f:
+    with open(twitter_input_file, "r") as f:
         # Iterate the json file one by one
         for tweet_counter, tweet in enumerate(ijson.items(f, "item")):
             if (
@@ -138,11 +146,15 @@ def mpi_rank_workers(df_geo):
             [data_procesed]
         )  # Aggregating partials results
 
-        
         comm.gather(result_aggregator, root=0)
 
 
 def main():
+    if args.get("input"):
+        twitter_input_file = args["input"]
+    else:
+        twitter_input_file = json_twitter
+
     if args.get("chunk"):
         chunk_size = args["chunk"]
     else:
@@ -169,7 +181,7 @@ def main():
         logger.info(f"Node List: {args.get('nodelist')}")
         st = time.time()
         # Run node 0 function
-        result_aggregator = mpi_rank_0(chunk_size, df_geo, logger)
+        result_aggregator = mpi_rank_0(chunk_size, df_geo, logger, twitter_input_file)
 
         # Temporal printing to see results
         result_aggregator.df1["Number of Tweets Made"].sum()
@@ -204,14 +216,17 @@ def main():
         logger.info(f"Execution time: {elapsed_time} seconds")
 
     else:
-        mpi_rank_workers(df_geo)
-    
+        mpi_rank_workers(df_geo, twitter_input_file)
+
     MPI.Finalize()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="The following program will answer the three questions of assignment 1 for subject COMP90024"
+    )
+    parser.add_argument(
+        "-i", "--input", help="Path to twitter file dataset", required=False
     )
     parser.add_argument("-p", "--path", help="Path to output folder", required=True)
     parser.add_argument(

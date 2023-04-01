@@ -1,0 +1,16 @@
+2023-04-01 13:19:57,304 - INFO - Node List: spartan-bm100
+2023-04-01 13:20:00,598 - INFO - IN PROGRESS: Total Tweets analysed: 100000
+2023-04-01 13:20:25,258 - INFO - IN PROGRESS: Total Tweets analysed: 900000
+2023-04-01 13:20:49,471 - INFO - IN PROGRESS: Total Tweets analysed: 1700000
+2023-04-01 13:21:13,964 - INFO - IN PROGRESS: Total Tweets analysed: 2500000
+2023-04-01 13:21:38,365 - INFO - IN PROGRESS: Total Tweets analysed: 3300000
+2023-04-01 13:22:02,165 - INFO - IN PROGRESS: Total Tweets analysed: 4100000
+2023-04-01 13:22:26,455 - INFO - IN PROGRESS: Total Tweets analysed: 4900000
+2023-04-01 13:22:50,735 - INFO - IN PROGRESS: Total Tweets analysed: 5700000
+2023-04-01 13:23:15,260 - INFO - IN PROGRESS: Total Tweets analysed: 6500000
+2023-04-01 13:23:42,722 - INFO - IN PROGRESS: Total Tweets analysed: 7300000
+2023-04-01 13:24:11,210 - INFO - IN PROGRESS: Total Tweets analysed: 8100000
+2023-04-01 13:24:40,519 - INFO - IN PROGRESS: Total Tweets analysed: 8900000
+2023-04-01 13:24:47,511 - INFO - IN PROGRESS: Total Tweets analysed: 1200000 in rank 0
+2023-04-01 13:24:55,389 - INFO - FINISHED: A total of 9092274 tweets were analyzed
+2023-04-01 13:28:04,229 - INFO - Execution time: 486.9241819381714 seconds
