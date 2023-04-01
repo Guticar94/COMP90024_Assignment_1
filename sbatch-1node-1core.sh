@@ -14,7 +14,10 @@ cd /home/$USER/COMP90024_ASSIGNMENT_1/
 module load gcc/10.2.0 
 module load openmpi/4.1.1
 module load python/3.8.6
-module load pip/21.2.4-python-3.8.6
-pip3 install -r requirements.txt
+mkdir ./virtualenv
+virtualenv ./virtualenv/python3.8.6
+source ./virtualenv/python3.8.6/bin/activate
+pip install -r requirements.txt
 
 mpiexec python3 main.py -p ./output/ -c 100000 -t "1-node-1-core" -n "$SLURM_JOB_NODELIST"
+deactivate
