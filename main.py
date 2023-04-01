@@ -7,13 +7,14 @@ import time
 import logging
 
 # Import helpers and variables
-from utils.variables import json_twitter, json_geo, gcca_codes, ccities
+from utils.variables import json_twitter, json_geo, gcca_codes, ccities,states_dict,capitals_dict, replacements
 
 from utils.helpers import (
     aggregate_results,
     gather_results,
     process_tweets,
     ResultAggregator,
+    quality_data,
     reading_json,
     process_data,
 )
@@ -136,6 +137,8 @@ def mpi_rank_workers(df_geo):
         result_aggregator.update_aggregation(
             [data_procesed]
         )  # Aggregating partials results
+
+        
         comm.gather(result_aggregator, root=0)
 
 
@@ -173,8 +176,12 @@ def main():
 
         # Here we answer the assignment questions
         # (We may do this through point to point communication)
+        # Estandarize dataset
+        qua = quality_data(result_aggregator.df1, df_geo)
+        est = qua.standarize(states_dict)
+        est = qua.replacement(capitals_dict, replacements)
         # Call class
-        proc = process_data(result_aggregator.df1)
+        proc = process_data(est)
 
         # Answer question 1
         df1 = proc.point_1(gcca_codes)

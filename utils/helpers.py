@@ -3,7 +3,7 @@ import pandas as pd
 import re
 
 # Import variables
-from utils.variables import states_dict, capitals_dict, replacements, gcca_codes
+from utils.variables import gcca_codes
 
 
 # ____________________________________________________________________________________________________
@@ -32,28 +32,28 @@ class quality_data:
 
         # Standarize tweets data states notation as sal notation
         for key, val in states_dict.items():
-            self.wk_ds["place_name"] = self.wk_ds["place_name"].apply(
+            self.wk_ds["Greater Capital City"] = self.wk_ds["Greater Capital City"].apply(
                 lambda x: re.sub(key, val, x)
             )
 
         # Set the names to lower case and drop special characters except Parenthesis to tweets data
-        self.wk_ds["place_name"] = self.wk_ds["place_name"].apply(
+        self.wk_ds["Greater Capital City"] = self.wk_ds["Greater Capital City"].apply(
             lambda x: x.replace(",", "").replace(" ", "").lower()
         )
 
     # Make data replacements to get standar structure of GCCA
     def replacement(self, ccap_dict, replacements):
         # Replace capital cities to gcc (Custom Regexp dictionary)
-        self.wk_ds[["place_name"]] = self.wk_ds[["place_name"]].replace(
-            {"place_name": ccap_dict}, regex=True
+        self.wk_ds[["Greater Capital City"]] = self.wk_ds[["Greater Capital City"]].replace(
+            {"Greater Capital City": ccap_dict}, regex=True
         )
         # Replace territories to Sal gcc (Regexp merge)
-        self.wk_ds["place_name"] = self.wk_ds[["place_name"]].replace(
-            {"place_name": self.geo}
+        self.wk_ds["Greater Capital City"] = self.wk_ds[["Greater Capital City"]].replace(
+            {"Greater Capital City": self.geo}
         )
         # # Replace remaining territories to gcc (Custom Regexp dictionary)
-        self.wk_ds["place_name"] = self.wk_ds[["place_name"]].replace(
-            {"place_name": replacements}, regex=True
+        self.wk_ds["Greater Capital City"] = self.wk_ds[["Greater Capital City"]].replace(
+            {"Greater Capital City": replacements}, regex=True
         )
         return self.wk_ds
 
@@ -61,15 +61,11 @@ class quality_data:
 # ____________________________________________________________________________________________________
 # Apply standarization and replace processing changes to incomming dataframes
 def process_tweets(df_tw, df_geo):
-    # Estandarize dataset
-    qua = quality_data(df_tw, df_geo)
-    est = qua.standarize(states_dict)
-    est = qua.replacement(capitals_dict, replacements)
 
     # Agreggated Data Frame and return estandarized agreggation
-    df = est.reset_index().groupby(["place_name", "auth_id"]).count().reset_index()
+    df = df_tw.reset_index().groupby(["place_name", "auth_id"]).count().reset_index()
     df.columns = ["Greater Capital City", "Author Id", "Number of Tweets Made"]
-    assert est.shape[0] == df.iloc[:, 2].sum()
+    assert df_tw.shape[0] == df.iloc[:, 2].sum()
     return df
 
 
